@@ -42,6 +42,7 @@
 
 #include "cm_parse_date.h"
 
+#include "cmCMakePresetsArgs.h"
 #include "cmCMakePresetsGraph.h"
 #include "cmCTestBuildAndTest.h"
 #include "cmCTestScriptHandler.h"
@@ -1501,8 +1502,7 @@ bool cmCTest::AddVariableDefinition(std::string const& arg)
   return false;
 }
 
-bool cmCTest::SetArgsFromPreset(std::string const& presetName,
-                                bool listPresets)
+bool cmCTest::SetArgsFromPreset(cmCMakePresetsArgs const& args)
 {
   auto const workingDirectory = cmSystemTools::GetLogicalWorkingDirectory();
 
@@ -1515,13 +1515,13 @@ bool cmCTest::SetArgsFromPreset(std::string const& presetName,
     return false;
   }
 
-  if (listPresets) {
+  if (args.ListPresets) {
     settingsFile.PrintTestPresetList();
     return true;
   }
 
   auto resolveResult =
-    settingsFile.ResolvePreset(presetName, settingsFile.TestPresets);
+    settingsFile.ResolvePreset(args.PresetName, settingsFile.TestPresets);
   auto resolveError =
     cmCMakePresetsGraph::FormatPresetError<cmCMakePresetsGraph::TestPreset>(
       resolveResult.StatusCode, resolveResult.ErrorPresetName,
@@ -1801,8 +1801,7 @@ int cmCTest::Run(std::vector<std::string> const& args)
   bool processSteps = false;
   bool SRArgumentSpecified = false;
   std::vector<std::pair<std::string, bool>> runScripts;
-  bool listPresets = false;
-  std::string presetName;
+  cmCMakePresetsArgs presetsArgs;
 
   // copy the command line
   cm::append(this->Impl->InitialCommandLineArguments, args);
@@ -1990,14 +1989,14 @@ int cmCTest::Run(std::vector<std::string> const& args)
 
   auto const presetArguments = std::vector<CommandArgument>{
     CommandArgument{ "--list-presets", CommandArgument::Values::Zero,
-                     [&listPresets](std::string const&) -> bool {
-                       listPresets = true;
+                     [&presetsArgs](std::string const&) -> bool {
+                       presetsArgs.ListPresets = true;
                        return true;
                      } },
     CommandArgument{ "--preset", "'--preset' requires an argument",
                      CommandArgument::Values::One,
-                     [&presetName](std::string const& presetArg) -> bool {
-                       presetName = presetArg;
+                     [&presetsArgs](std::string const& presetArg) -> bool {
+                       presetsArgs.PresetName = presetArg;
                        return true;
                      } }
   };
@@ -2490,9 +2489,9 @@ int cmCTest::Run(std::vector<std::string> const& args)
     }
   }
 
-  if (listPresets || !presetName.empty()) {
-    bool success = this->SetArgsFromPreset(presetName, listPresets);
-    if (listPresets) {
+  if (presetsArgs.HasPresetsArg()) {
+    bool success = this->SetArgsFromPreset(presetsArgs);
+    if (presetsArgs.ListPresets) {
       return static_cast<int>(!success);
     }
     if (!success) {

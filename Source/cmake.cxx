@@ -86,6 +86,7 @@
 #  include <cm3p/curl/curl.h>
 #  include <cm3p/json/writer.h>
 
+#  include "cmCMakePresetsArgs.h"
 #  include "cmConfigureLog.h"
 #  include "cmFileAPI.h"
 #  include "cmGraphVizWriter.h"
@@ -1014,9 +1015,9 @@ void cmake::SetArgs(std::vector<std::string> const& args)
 #if !defined(CMAKE_BOOTSTRAP)
   std::string profilingFormat;
   std::string profilingOutput;
-  std::string presetName;
 
-  ListPresets listPresets = ListPresets::None;
+  cmCMakePresetsConfigureArgs presetsArgs;
+  using ListPresets = cmCMakePresetsConfigureArgs::ListPresetsOption;
 #endif
 
   auto EmptyStringArgLambda = [](std::string const&, cmake* state) -> bool {
@@ -1429,24 +1430,24 @@ void cmake::SetArgs(std::vector<std::string> const& args)
   arguments.emplace_back("--preset", "No preset specified for --preset",
                          CommandArgument::Values::One,
                          [&](std::string const& value, cmake*) -> bool {
-                           presetName = value;
+                           presetsArgs.PresetName = value;
                            return true;
                          });
   arguments.emplace_back(
     "--list-presets", CommandArgument::Values::ZeroOrOne,
     [&](std::string const& value, cmake*) -> bool {
       if (value.empty() || value == "configure") {
-        listPresets = ListPresets::Configure;
+        presetsArgs.ListPresets = ListPresets::Configure;
       } else if (value == "build") {
-        listPresets = ListPresets::Build;
+        presetsArgs.ListPresets = ListPresets::Build;
       } else if (value == "test") {
-        listPresets = ListPresets::Test;
+        presetsArgs.ListPresets = ListPresets::Test;
       } else if (value == "package") {
-        listPresets = ListPresets::Package;
+        presetsArgs.ListPresets = ListPresets::Package;
       } else if (value == "workflow") {
-        listPresets = ListPresets::Workflow;
+        presetsArgs.ListPresets = ListPresets::Workflow;
       } else if (value == "all") {
-        listPresets = ListPresets::All;
+        presetsArgs.ListPresets = ListPresets::All;
       } else {
         cmSystemTools::Error(
           "Invalid value specified for --list-presets.\n"
@@ -1573,7 +1574,7 @@ void cmake::SetArgs(std::vector<std::string> const& args)
 #ifdef CMAKE_BOOTSTRAP
     false;
 #else
-    !presetName.empty();
+    !presetsArgs.PresetName.empty();
 #endif
 
   if (this->State->GetRole() == cmState::Role::Project && !haveSourceDir &&
@@ -1593,8 +1594,8 @@ void cmake::SetArgs(std::vector<std::string> const& args)
   }
 
 #if !defined(CMAKE_BOOTSTRAP)
-  if (listPresets != ListPresets::None || !presetName.empty()) {
-    this->SetArgsFromPreset(presetName, listPresets, haveBArg);
+  if (presetsArgs.HasPresetsArg()) {
+    this->SetArgsFromPreset(presetsArgs, haveBArg);
   }
 #endif
 }
@@ -2009,9 +2010,11 @@ bool cmake::CreateAndSetGlobalGenerator(std::string const& name)
 }
 
 #ifndef CMAKE_BOOTSTRAP
-bool cmake::SetArgsFromPreset(std::string const& presetName,
-                              ListPresets listPresets, bool haveBinaryDirArg)
+bool cmake::SetArgsFromPreset(cmCMakePresetsConfigureArgs const& args,
+                              bool haveBinaryDirArg)
 {
+  using ListPresets = cmCMakePresetsConfigureArgs::ListPresetsOption;
+
   cmCMakePresetsGraph presetsGraph;
   auto result = presetsGraph.ReadProjectPresets(this->GetHomeDirectory());
   if (result != true) {
@@ -2022,19 +2025,28 @@ bool cmake::SetArgsFromPreset(std::string const& presetName,
     return false;
   }
 
-  if (listPresets != ListPresets::None) {
-    if (listPresets == ListPresets::Configure) {
-      this->PrintPresetList(presetsGraph);
-    } else if (listPresets == ListPresets::Build) {
-      presetsGraph.PrintBuildPresetList();
-    } else if (listPresets == ListPresets::Test) {
-      presetsGraph.PrintTestPresetList();
-    } else if (listPresets == ListPresets::Package) {
-      presetsGraph.PrintPackagePresetList();
-    } else if (listPresets == ListPresets::Workflow) {
-      presetsGraph.PrintWorkflowPresetList();
-    } else if (listPresets == ListPresets::All) {
-      presetsGraph.PrintAllPresets();
+  if (args.ListPresets != ListPresets::None) {
+    switch (args.ListPresets) {
+      case ListPresets::Configure:
+        this->PrintPresetList(presetsGraph);
+        break;
+      case ListPresets::Build:
+        presetsGraph.PrintBuildPresetList();
+        break;
+      case ListPresets::Test:
+        presetsGraph.PrintTestPresetList();
+        break;
+      case ListPresets::Package:
+        presetsGraph.PrintPackagePresetList();
+        break;
+      case ListPresets::Workflow:
+        presetsGraph.PrintWorkflowPresetList();
+        break;
+      case ListPresets::All:
+        presetsGraph.PrintAllPresets();
+        break;
+      default:
+        break;
     }
 
     this->State->SetRoleToHelpForListPresets();
@@ -2042,7 +2054,7 @@ bool cmake::SetArgsFromPreset(std::string const& presetName,
   }
 
   auto resolveResult =
-    presetsGraph.ResolvePreset(presetName, presetsGraph.ConfigurePresets);
+    presetsGraph.ResolvePreset(args.PresetName, presetsGraph.ConfigurePresets);
   using ConfigurePreset = cmCMakePresetsGraph::ConfigurePreset;
   using S = cmCMakePresetsGraph::PresetResolveStatus;
   auto resolveError = cmCMakePresetsGraph::FormatPresetError<ConfigurePreset>(
@@ -3897,13 +3909,14 @@ std::vector<std::string> cmake::GetDebugConfigs()
 
 int cmake::Build(cmBuildArgs buildArgs, std::vector<std::string> targets,
                  std::vector<std::string> nativeOptions,
-                 cmBuildOptions& buildOptions, std::string const& presetName,
-                 bool listPresets, std::vector<std::string> const& args)
+                 cmBuildOptions& buildOptions,
+                 cmCMakePresetsArgs const& presetsArgs,
+                 std::vector<std::string> const& args)
 {
   buildArgs.timeout = cmDuration::zero();
 
 #if !defined(CMAKE_BOOTSTRAP)
-  if (!presetName.empty() || listPresets) {
+  if (presetsArgs.HasPresetsArg()) {
     // If the binary directory was specified, use it to find
     // the source directory so we can locate the presets file.
     if (!buildArgs.binaryDir.empty() &&
@@ -3924,13 +3937,13 @@ int cmake::Build(cmBuildArgs buildArgs, std::vector<std::string> targets,
       return 1;
     }
 
-    if (listPresets) {
+    if (presetsArgs.ListPresets) {
       settingsFile.PrintBuildPresetList();
       return 0;
     }
 
-    auto resolveResult =
-      settingsFile.ResolvePreset(presetName, settingsFile.BuildPresets);
+    auto resolveResult = settingsFile.ResolvePreset(presetsArgs.PresetName,
+                                                    settingsFile.BuildPresets);
     auto resolveError =
       cmCMakePresetsGraph::FormatPresetError<cmCMakePresetsGraph::BuildPreset>(
         resolveResult.StatusCode, resolveResult.ErrorPresetName,
@@ -4261,8 +4274,7 @@ std::function<cmUVProcessChain::Status()> buildWorkflowStep(
 }
 #endif
 
-int cmake::Workflow(std::string const& presetName,
-                    WorkflowListPresets listPresets, WorkflowFresh fresh)
+int cmake::Workflow(cmCMakePresetsWorkflowArgs const& args)
 {
   int exitStatus = 0;
 #ifndef CMAKE_BOOTSTRAP
@@ -4278,24 +4290,24 @@ int cmake::Workflow(std::string const& presetName,
     return 1;
   }
 
-  if (listPresets == WorkflowListPresets::Yes) {
+  if (args.ListPresets) {
     settingsFile.PrintWorkflowPresetList();
     return 0;
   }
 
-  auto presetPair = settingsFile.WorkflowPresets.find(presetName);
+  auto presetPair = settingsFile.WorkflowPresets.find(args.PresetName);
   if (presetPair == settingsFile.WorkflowPresets.end()) {
     cmSystemTools::Error(cmStrCat("No such workflow preset in ",
-                                  this->GetHomeDirectory(), ": \"", presetName,
-                                  '"'));
+                                  this->GetHomeDirectory(), ": \"",
+                                  args.PresetName, '"'));
     settingsFile.PrintWorkflowPresetList();
     return 1;
   }
 
   if (presetPair->second.Unexpanded.Hidden) {
     cmSystemTools::Error(cmStrCat("Cannot use hidden workflow preset in ",
-                                  this->GetHomeDirectory(), ": \"", presetName,
-                                  '"'));
+                                  this->GetHomeDirectory(), ": \"",
+                                  args.PresetName, '"'));
     settingsFile.PrintWorkflowPresetList();
     return 1;
   }
@@ -4303,15 +4315,16 @@ int cmake::Workflow(std::string const& presetName,
   auto const& expandedPreset = presetPair->second.Expanded;
   if (!expandedPreset) {
     cmSystemTools::Error(cmStrCat("Could not evaluate workflow preset \"",
-                                  presetName, "\": Invalid macro expansion"));
+                                  args.PresetName,
+                                  "\": Invalid macro expansion"));
     settingsFile.PrintWorkflowPresetList();
     return 1;
   }
 
   if (!expandedPreset->ConditionResult) {
     cmSystemTools::Error(cmStrCat("Cannot use disabled workflow preset in ",
-                                  this->GetHomeDirectory(), ": \"", presetName,
-                                  '"'));
+                                  this->GetHomeDirectory(), ": \"",
+                                  args.PresetName, '"'));
     settingsFile.PrintWorkflowPresetList();
     return 1;
   }
@@ -4347,13 +4360,14 @@ int cmake::Workflow(std::string const& presetName,
         if (!configurePreset) {
           return 1;
         }
-        std::vector<std::string> args{ cmSystemTools::GetCMakeCommand(),
-                                       "--preset", step.PresetName };
-        if (fresh == WorkflowFresh::Yes) {
-          args.emplace_back("--fresh");
+        std::vector<std::string> configureCmdArgs{
+          cmSystemTools::GetCMakeCommand(), "--preset", step.PresetName
+        };
+        if (args.Fresh) {
+          configureCmdArgs.emplace_back("--fresh");
         }
         steps.emplace_back(stepNumber, "configure"_s, step.PresetName,
-                           buildWorkflowStep(args));
+                           buildWorkflowStep(configureCmdArgs));
       } break;
       case cmCMakePresetsGraph::WorkflowPreset::WorkflowStep::Type::Build: {
         auto const* buildPreset = this->FindPresetForWorkflow(

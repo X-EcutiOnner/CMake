@@ -19,6 +19,7 @@
 
 #include "cmsys/Encoding.hxx"
 
+#include "cmCMakePresetsArgs.h"
 #include "cmCMakePresetsGraph.h"
 #include "cmCPackGenerator.h"
 #include "cmCPackGeneratorFactory.h"
@@ -130,8 +131,7 @@ int main(int argc, char const* const* argv)
   std::string cpackProjectVendor;
   std::string cpackConfigFile;
 
-  std::string preset;
-  bool listPresets = false;
+  cmCMakePresetsArgs presetsArgs;
 
   std::map<std::string, std::string> definitions;
 
@@ -201,9 +201,9 @@ int main(int argc, char const* const* argv)
                      CommandArgument::setToValue(cpackProjectVendor) },
     CommandArgument{ "--preset", "No preset specified for --preset",
                      CommandArgument::Values::One,
-                     CommandArgument::setToValue(preset) },
+                     CommandArgument::setToValue(presetsArgs.PresetName) },
     CommandArgument{ "--list-presets", CommandArgument::Values::Zero,
-                     CommandArgument::setToTrue(listPresets) },
+                     CommandArgument::setToTrue(presetsArgs.ListPresets) },
     CommandArgument{ "-D", CommandArgument::Values::One,
                      CommandArgument::RequiresSeparator::No,
                      [&log, &definitions](std::string const& arg, cmake*,
@@ -249,7 +249,7 @@ int main(int argc, char const* const* argv)
   generators.SetLogger(&log);
 
   // Set up presets
-  if (!preset.empty() || listPresets) {
+  if (presetsArgs.HasPresetsArg()) {
     auto const workingDirectory = cmSystemTools::GetLogicalWorkingDirectory();
 
     auto const presetGeneratorsPresent =
@@ -271,13 +271,13 @@ int main(int argc, char const* const* argv)
       return 1;
     }
 
-    if (listPresets) {
+    if (presetsArgs.ListPresets) {
       presetsGraph.PrintPackagePresetList(presetGeneratorsPresent);
       return 0;
     }
 
-    auto resolveResult =
-      presetsGraph.ResolvePreset(preset, presetsGraph.PackagePresets);
+    auto resolveResult = presetsGraph.ResolvePreset(
+      presetsArgs.PresetName, presetsGraph.PackagePresets);
     auto resolveError = cmCMakePresetsGraph::FormatPresetError<
       cmCMakePresetsGraph::PackagePreset>(resolveResult.StatusCode,
                                           resolveResult.ErrorPresetName,
