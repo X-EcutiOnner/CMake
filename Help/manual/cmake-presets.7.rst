@@ -16,8 +16,12 @@ One problem that CMake users often face is sharing settings with other people
 for common ways to configure a project. This may be done to support CI builds,
 or for users who frequently use the same build. CMake supports two main files,
 ``CMakePresets.json`` and ``CMakeUserPresets.json``, that allow users to
-specify common configure options and share them with others. CMake also
-supports files included with the ``include`` field.
+specify common configure options and share them with others.
+
+.. presets-versionadded:: 4
+
+  CMake also supports files included with the :preset:`include` field.  See
+  `Includes`_ for more details.
 
 ``CMakePresets.json`` and ``CMakeUserPresets.json`` live in the project's root
 directory. They both have exactly the same format, and both are optional
@@ -51,11 +55,13 @@ The root object recognizes the following fields:
 Includes
 ^^^^^^^^
 
-CMake presets files can include other files with the ``include`` field in file
-version ``4`` and later. Files included by these files can also include other
-files. If ``CMakePresets.json`` and ``CMakeUserPresets.json`` are both present,
+.. presets-versionadded:: 4
+
+CMake presets files can include other files with the :preset:`include` field.
+Files included in this manner can also include other files.  If
+``CMakePresets.json`` and ``CMakeUserPresets.json`` are both present,
 ``CMakeUserPresets.json`` implicitly includes ``CMakePresets.json``, even with
-no ``include`` field, in all versions of the format.
+no :preset:`include` field, in all versions of the format.
 
 If a presets file contains presets that inherit from presets in another file,
 the file must include the other file either directly or indirectly.
@@ -69,14 +75,14 @@ include files from anywhere.
 
 .. presets-versionchanged:: 7
 
-  The ``include`` field supports `macro expansion`_, but only ``$penv{}`` macro
-  expansion.
+  The :preset:`include` field supports `macro expansion`_, but only ``$penv{}``
+  macro expansion.
 
 .. presets-versionchanged:: 9
 
-  The ``include`` field supports `macro expansion`_, except for ``$env{}`` and
-  preset-specific macros (i.e., those derived from the fields inside a preset's
-  definition like ``presetName``).
+  The :preset:`include` field supports `macro expansion`_, except for
+  ``$env{}`` and preset-specific macros (i.e., those derived from the fields
+  inside a preset's definition like ``presetName``).
 
 .. _`Configure Preset`:
 
@@ -429,7 +435,7 @@ they were added and a summary of the new features and changes is given below.
 
     * Changes to `Includes`_
 
-      * The ``include`` field now supports ``$penv{}`` `macro expansion`_.
+      * The :preset:`include` field now supports ``$penv{}`` `macro expansion`_.
 
   ``8``
     .. versionadded:: 3.28
@@ -441,7 +447,8 @@ they were added and a summary of the new features and changes is given below.
 
     * Changes to `Includes`_
 
-      * The ``include`` field now supports other types of `macro expansion`_.
+      * The :preset:`include` field now supports other types of
+        `macro expansion`_.
 
   ``10``
     .. versionadded:: 3.31
