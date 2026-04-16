@@ -124,8 +124,8 @@ Options
 
   Use a package :manual:`preset <cmake-presets(7)>` to specify package
   options. The project binary directory is inferred from the
-  ``configurePreset`` key. The current working directory must contain
-  ``CMakePresets.json`` or ``CMakeUserPresets.json``.
+  :preset:`packagePresets.configurePreset` key. The current working directory
+  must contain ``CMakePresets.json`` or ``CMakeUserPresets.json``.
 
 .. option:: --list-presets
 

@@ -70,14 +70,14 @@ The options for running tests are:
 .. option:: --preset <preset>, --preset=<preset>
 
  Use a test :manual:`preset <cmake-presets(7)>` to specify test options. The
- project binary directory is inferred from the ``configurePreset`` key. The
- current working directory must contain ``CMakePresets.json`` and/or
- ``CMakeUserPresets.json``.
+ project binary directory is inferred from the
+ :preset:`testPresets.configurePreset` key. The current working directory must
+ contain ``CMakePresets.json`` and/or ``CMakeUserPresets.json``.
 
  .. versionadded:: 3.30
-   The ``--test-dir`` option may optionally be specified with a different
-   binary directory than the one specified by the ``configurePreset`` key
-   of the test preset.
+   The :ctest-option:`--test-dir` option may be specified with a different
+   binary directory than the one specified by the
+   :preset:`testPresets.configurePreset` key.
 
 .. option:: --list-presets
 
