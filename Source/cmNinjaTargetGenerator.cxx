@@ -2200,8 +2200,8 @@ void cmNinjaTargetGenerator::WriteSwiftObjectBuildStatement(
   objBuild.RspFile = cmStrCat(targetObjectFilename, ".swift.rsp");
 
   // Importable targets keep -emit-module on compile so swiftc still emits
-  // .swiftdoc.  When splitting module emission, only the .swiftmodule output
-  // moves to the separate emit-module edge.
+  // .swiftdoc.  When splitting module emission, both the .swiftmodule output
+  // and -emit-module flags move entirely to the separate emit-module edge.
   if (targetIsImportable && !emitModuleSeparately) {
     objBuild.Outputs.push_back(moduleFilepath);
   }
@@ -2240,7 +2240,8 @@ void cmNinjaTargetGenerator::WriteSwiftObjectBuildStatement(
   std::string const moduleOutputPath =
     this->LocalGenerator->ConvertToOutputFormat(moduleFilepath,
                                                 cmOutputConverter::SHELL);
-  if (targetIsImportable) {
+  if (targetIsImportable && !emitModuleSeparately &&
+      commonFlags.find("-emit-module-path") == std::string::npos) {
     std::string const emitModuleFlag = "-emit-module";
     std::string const modulePathFlag = "-emit-module-path";
     this->LocalGenerator->AppendFlags(
@@ -2291,10 +2292,14 @@ void cmNinjaTargetGenerator::WriteSwiftObjectBuildStatement(
     // Start from common flags (shared with compile edge) and add
     // emit-module-specific flags.  The emit-module rule template already
     // contains -emit-module, so we only need -emit-module-path here.
+    // Skip if the flags already contain one (e.g. a directory-style path
+    // set by the target's compile options).
     modBuild.Variables["FLAGS"] = commonFlags;
-    this->LocalGenerator->AppendFlags(
-      modBuild.Variables["FLAGS"],
-      cmStrCat("-emit-module-path ", moduleOutputPath));
+    if (commonFlags.find("-emit-module-path") == std::string::npos) {
+      this->LocalGenerator->AppendFlags(
+        modBuild.Variables["FLAGS"],
+        cmStrCat("-emit-module-path ", moduleOutputPath));
+    }
 
     modBuild.RspFile = cmStrCat(moduleFilepath, ".rsp");
 
