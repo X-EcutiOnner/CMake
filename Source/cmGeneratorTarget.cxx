@@ -6173,7 +6173,13 @@ std::string cmGeneratorTarget::BuildDatabasePath(
 
 std::string cmGeneratorTarget::GetSwiftModuleName() const
 {
-  return this->GetPropertyOrDefault("Swift_MODULE_NAME", this->GetName());
+  if (cmValue name = this->GetProperty("Swift_MODULE_NAME")) {
+    return *name;
+  }
+  // Hyphens are not valid in Swift module identifiers.
+  std::string name = this->GetName();
+  std::replace(name.begin(), name.end(), '-', '_');
+  return name;
 }
 
 std::string cmGeneratorTarget::GetSwiftModuleFileName() const

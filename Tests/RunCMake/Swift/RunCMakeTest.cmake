@@ -172,6 +172,13 @@ if(RunCMake_GENERATOR MATCHES "Ninja")
   endblock()
 
   block()
+    set(RunCMake_TEST_BINARY_DIR ${RunCMake_BINARY_DIR}/SwiftModuleNameHyphen-build)
+    run_cmake(SwiftModuleNameHyphen)
+    set(RunCMake_TEST_NO_CLEAN 1)
+    run_cmake_command(SwiftModuleNameHyphen-build ${CMAKE_COMMAND} --build . -- -vn)
+  endblock()
+
+  block()
     set(RunCMake_TEST_BINARY_DIR ${RunCMake_BINARY_DIR}/SwiftLibraryModuleCommand-build)
     run_cmake(SwiftLibraryModuleCommand)
     set(RunCMake_TEST_NO_CLEAN 1)
