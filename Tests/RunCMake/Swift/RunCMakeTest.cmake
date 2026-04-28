@@ -179,6 +179,10 @@ if(RunCMake_GENERATOR MATCHES "Ninja")
   endblock()
 
   block()
+    run_cmake(EmitModuleSeparatelyOrdering)
+  endblock()
+
+  block()
     if(CMAKE_SYSTEM_NAME MATCHES Windows)
       set(RunCMake_TEST_BINARY_DIR ${RunCMake_BINARY_DIR}/ImportLibraryFlags-build)
       run_cmake(ImportLibraryFlags)

@@ -2276,11 +2276,6 @@ void cmNinjaTargetGenerator::WriteSwiftObjectBuildStatement(
 
   objBuild.OrderOnlyDeps.push_back(this->OrderDependsTargetForTarget(config));
 
-  // Write object build
-  this->GetGlobalGenerator()->WriteBuild(this->GetImplFileStream(fileConfig),
-                                         objBuild,
-                                         this->ForceResponseFile() ? -1 : 0);
-
   // Write a separate emit-module build edge that produces .swiftmodule
   // without compile outputs. This allows downstream Swift targets to start
   // compiling as soon as the module interface is ready, overlapping with
@@ -2311,7 +2306,16 @@ void cmNinjaTargetGenerator::WriteSwiftObjectBuildStatement(
     this->GetGlobalGenerator()->WriteBuild(this->GetImplFileStream(fileConfig),
                                            modBuild,
                                            this->ForceResponseFile() ? -1 : 0);
+
+    // Both edges share the same -output-file-map; serialize the compile
+    // edge after emit-module so they do not race on the module .swiftdeps.
+    objBuild.OrderOnlyDeps.push_back(moduleFilepath);
   }
+
+  // Write object build
+  this->GetGlobalGenerator()->WriteBuild(this->GetImplFileStream(fileConfig),
+                                         objBuild,
+                                         this->ForceResponseFile() ? -1 : 0);
 }
 
 void cmNinjaTargetGenerator::WriteTargetDependInfo(std::string const& lang,
