@@ -5563,6 +5563,13 @@ cmGeneratorTarget const* cmGeneratorTarget::GetCxxSyntheticTarget(
   // compile features and options.
   tgt->CopyUsageEffects(&bmiConsumer, config);
 
+  auto const& preprocessorCompileOptions =
+    this->GetCxxModuleUsageEffects(config).GetPreprocessorCompileOptions();
+  for (auto it = preprocessorCompileOptions.rbegin();
+       it != preprocessorCompileOptions.rend(); ++it) {
+    tgt->InsertCompileOption(*it, true);
+  }
+
   // Copy properties which don't effect consumer compatibility
   tgt->CopyCxxModulesEntries(model);
 
