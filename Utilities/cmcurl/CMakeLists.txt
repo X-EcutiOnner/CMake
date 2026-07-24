@@ -88,7 +88,6 @@ set(ENABLE_THREADED_RESOLVER OFF CACHE INTERNAL "No curl POSIX threaded DNS look
 set(ENABLE_UNICODE ON)
 set(ENABLE_UNIX_SOCKETS OFF CACHE INTERNAL "No curl Unix domain sockets support")
 set(HAVE_ATOMIC 0)
-set(HAVE_BORINGSSL 0) # we do not need this info
 set(HAVE_RECV 1)
 set(HAVE_SEND 1)
 set(HAVE_STDATOMIC_H 0)
